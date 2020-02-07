@@ -1,0 +1,49 @@
+import os
+import ssl
+from irods.session import iRODSSession
+from irods.models import Collection, DataObject
+
+# the upper directory of EHT Imaging library on CyVerse
+LibraryDirectory="/iplant/home/shared/eht/BkupSimulationLibrary/M87/H5S/suggested/2020.01.06"
+# the upper directory of EHT Simulation libraries on CyVerse
+#LibraryDirectory="/iplant/home/shared/eht/BkupSimulationLibrary"
+#LibraryDirectory="/iplant/home/shared/eht/M87SimulationLibrary"
+#LibraryDirectory="/iplant/home/shared/eht"
+
+#KeyWords=["Ma","a-0.94","Rhigh_80"]
+KeyWords=["a"]
+
+# Get the information on how to connect to CyVerse
+try:
+    env_file = os.environ['IRODS_ENVIRONMENT_FILE']
+except KeyError:
+    env_file = os.path.expanduser('~/.irods/irods_environment.json')
+
+# Connect to CyVerse
+ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile=None, capath=None, cadata=None)
+ssl_settings = {'ssl_context': ssl_context}
+with iRODSSession(irods_env_file=env_file, **ssl_settings) as session:
+
+    # first get the directory structure under the main directory
+    coll0 = session.collections.get(LibraryDirectory)
+
+    # and then go recursively through 4 layers of directorieas
+    # TODO: rewrite as a true recursion
+    for col0items in coll0.subcollections:
+        c1name=LibraryDirectory+"/"+col0items.name
+        col1=session.collections.get(c1name)
+        for col1items in col1.subcollections:
+            c2name=c1name+"/"+col1items.name
+            col2=session.collections.get(c2name)
+            for col2items in col2.subcollections:
+                c3name=c2name+"/"+col2items.name
+                col3=session.collections.get(c3name)
+                for col3items in col3.subcollections:
+                    c4name=c3name+"/"+col3items.name
+                    col4=session.collections.get(c4name)
+                    for col4items in col4.subcollections:
+
+                        pathname=col4items.path
+                        if all(ext in pathname for ext in KeyWords):
+                            files=col4items.data_objects
+                            print(pathname,len(files))
